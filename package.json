@@ -1,0 +1,21 @@
+{
+  "name": "sequencer",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "scripts": {
+    "start": "accurapp-scripts start",
+    "build": "accurapp-scripts build"
+  },
+  "devDependencies": {
+    "accurapp-scripts": "^3.1.2",
+    "eslint-config-accurapp": "^3.0.0",
+    "webpack-preset-accurapp": "^3.0.1"
+  },
+  "dependencies": {
+    "d3": "^4.9.1",
+    "lodash": "^4.17.4",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4"
+  }
+}
