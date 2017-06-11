@@ -26,7 +26,7 @@ const buffers = [
     Osc.sin(t * getNoteFreq('E3')) * // Envl.decay(t, 1, 0.01, 0.3, 10) *
     Osc.sin(t * getNoteFreq('G3')) * // Envl.decay(t, 1, 0.01, 0.3, 10) *
   1),
-  [],
+
   genBuffer(0.2, t => Osc.sin(Envl.decay(t, 660, 110, 1))), // laser
   genBuffer(0.2, t => Osc.sin(Envl.decay(t, 660, 10, 1))),
   genBuffer(0.2, t => Osc.sin(Envl.decay(t, 60, 10, 1))),
