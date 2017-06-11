@@ -1,11 +1,12 @@
 import React from 'react'
 import store from 'store/dist/store.modern'
+import { get } from 'lodash'
 
 function buildPads(steps, instruments, template = null) {
   const empty = Array(steps).fill(0).map(() => Array(instruments).fill(0))
   if (template === null) return empty
   empty.forEach((steps, s) => steps.forEach((_, i) => {
-    empty[s][i] = template[s][i] || 0
+    empty[s][i] = get(template, [s, i], 0)
   }))
   return empty
 }
@@ -17,6 +18,21 @@ function extractTargetValue(fn) {
 function truesToIndexesReducer(acc, el, index) {
   if (el) acc.push(index)
   return acc
+}
+
+function Button({ active, className, ...props }) {
+  const classes = [
+    'w3 f5 pv1 ma1 ba bw2 outline-0',
+    'bg-white hover-orange pointer',
+    active ? 'orange b--orange' : 'dark-blue b--dark-blue',
+    className,
+  ].join(' ')
+  return (
+    <button
+      className={classes}
+      {...props}
+    />
+  )
 }
 
 export default class Sequencer extends React.Component {
@@ -72,8 +88,9 @@ export default class Sequencer extends React.Component {
   }
 
   reset = () => {
+    const { steps, instruments } = this.props
     this.setState({
-      pads: buildPads(),
+      pads: buildPads(steps, instruments),
     }, () => {
       this.togglePad(0, 0)
       this.togglePad(0, 0)
@@ -107,19 +124,19 @@ export default class Sequencer extends React.Component {
     return (
       <div className="pa3">
         <div className="-controls flex">
-          <button
-            className={`ph2 pv1 ma1 f5 ba bw2 bg-white outline-0 ${this.state.playing ? 'b--orange orange' : 'b--dark-blue dark-blue'}`}
+          <Button
+            active={this.state.playing}
             onClick={this.togglePlay}>
             Play
-          </button>
+          </Button>
 
           <div className="ph2 pv1 ma1 f5 ba bw2 b--dark-blue dark-blue bg-white">
-            <input value={this.state.bpm} onChange={extractTargetValue(this.setBpm)} />
+            <input className="w4" value={this.state.bpm} onChange={extractTargetValue(this.setBpm)} />
           </div>
 
-          <button className="ph2 pv1 ma1 f5 ba bw2 b--dark-blue dark-blue bg-white" onClick={this.reset}>
+          <Button onClick={this.reset}>
             Reset
-          </button>
+          </Button>
         </div>
 
         <div className="-groups flex">

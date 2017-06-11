@@ -12,6 +12,12 @@ export const NOTES = {
   /* eslint-disable object-property-newline */
 }
 
+export function getNoteFreq(noteString) {
+  const freq = NOTES[noteString.toUpperCase()]
+  if (!freq) throw new Error(`No note named ${noteString}!`)
+  return freq
+}
+
 export function getNotesForOctave(octave) {
   const scale = Object.keys(NOTES).reduce((obj, note) => {
     if (Number(note.split('').pop()) === Number(octave)) { obj[note] = NOTES[note] }

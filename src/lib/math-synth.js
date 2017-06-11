@@ -1,8 +1,26 @@
 const context = new window.AudioContext()
 
+const TWO_PI = 2 * Math.PI
+function sinPi(x) { return Math.sin(x * TWO_PI) }
+function clamp(x, [min, max]) { return Math.max(Math.min(x, max), min) }
+function sig(x) { return x > 0 ? 1 : x < 0 ? -1 : 0 }
+function zero(bool) { return bool ? 0 : 1 }
+function abs(x) { return Math.abs(x) }
+
 export const Osc = {
-  sin(x) { return Math.sin(x * 2 * Math.PI) * 0.5 + 0.5 },
-  clamp(x, [min, max]) { return Math.max(Math.min(x, max), min) },
+  sin(x) { return sinPi(x) },
+  squ(x) { return sig(sinPi(x)) },       // amplitude 1
+  sqn(x) { return sig(sinPi(x)) * 0.2 }, // amplitude normalized
+  saw(x) { return ((x + 0.25) % 1) * 2 - 1 },
+  tri(x) { return abs(Osc.saw(x)) * 2 - 1 },
+  noi(x) { return Math.random() },
+}
+
+export const Envl = {
+  decay: (t, a, b, k, s = 1) => ((a / s) * b * k) / (b * k + (t - 0.002) * ((a / s) - b)) * s,
+  lin: (t, a, b, k) => zero(t >= k) * (a + (b - a) * t % k / k),
+  sin: (t, k) => sinPi(t / k / 2),
+  sindecay: (t, ks, kd = ks, s = 1) => Envl.sin(t, ks) * Envl.decay(t, 1, 0.1, kd, s) * 4.4,
 }
 
 export function genBuffer(durationSeconds, genFn) {
@@ -12,9 +30,10 @@ export function genBuffer(durationSeconds, genFn) {
 
   for (let i = 0; i <= data.length; i++) {
     const t = i / context.sampleRate
-    const ramp = i < 100 ? i / 100 : (data.length - i) < 100 ? (data.length - i) / 100 : 1
-    const datum = genFn(t) * ramp
-    data[i] = Osc.clamp(datum, [0, 1])
+    const RMP = 100
+    // const ramp = i < RMP ? i / RMP : (data.length - i) < RMP ? (data.length - i) / RMP : 1
+    const datum = genFn(t)
+    data[i] = clamp(datum, [-1, 1])
   }
 
   return buffer
@@ -75,43 +94,42 @@ export function playBuffer(buffer) {
 
 // let int
 function drawPlayer(buffer, canvas = undefined) {
-  draw(buffer.getChannelData(0), canvas).addEventListener('click', () => {
+  drawBufData(buffer.getChannelData(0), canvas).addEventListener('click', () => {
     playBuffer(buffer)
     // const node = playOrStop(buffer)
     // if (node) {
     //   const canvas = document.createElement('canvas')
-    //   int = window.setInterval(() => draw(analyseFft(node), canvas), 500)
+    //   int = window.setInterval(() => drawBufData(analyseFft(node), canvas), 500)
     // } else {
     //   window.clearInterval(int)
     // }
   })
 }
 
-function draw(audioData, givenCanvas = null) {
+export function drawBufData(audioData, givenCanvas = null) {
   const canvas = givenCanvas || document.createElement('canvas')
-  const w = canvas.width = audioData.length
-  const h = canvas.height = 100
-  canvas.style.width = '100%'
-  canvas.style.height = '100px'
-  const ctx = canvas.getContext('2d')
 
-  console.log(`Rendering ${w} lines`)
+  const w = canvas.width = audioData.length
+  canvas.style.width = '100%'
+  const h = canvas.height
+  canvas.style.height = `${h}px`
+
+  // console.log(`Rendering ${w} lines`)
+  const ctx = canvas.getContext('2d')
   ctx.fillStyle = 'steelblue'
   ctx.globalAlpha = 0.4
   ctx.fillRect(0, 0, w, h)
   ctx.globalAlpha = 1
   for (let x = 0; x < w; x++) {
-    const y = audioData[x] * h
-    // setTimeout(() => ctx.fillRect(x, h - y, 1, y), 1)
+    const y = (audioData[x] / 2 + 0.5) * h
+    ctx.fillRect(x, h - y - 1, 1, 2)
+    ctx.globalAlpha = 0.3
     ctx.fillRect(x, h - y, 1, y)
+    ctx.globalAlpha = 1.0
   }
 
   if (!givenCanvas) document.body.appendChild(canvas)
   return canvas
-}
-
-export const Envl = {
-  decay: (a, b, t) => a * b / (b + t * (a - b)),
 }
 
 export const Sounds = {
