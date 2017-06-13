@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "start": "accurapp-scripts start",
-    "build": "accurapp-scripts build"
+    "build": "accurapp-scripts build",
+    "test": "./node_modules/eslint/bin/eslint.js src/"
   },
   "devDependencies": {
     "accurapp-scripts": "^3.1.2",

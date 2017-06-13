@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+  - "7"
+
+install: yarn install
+cache: yarn
+
+script: yarn build
+
+deploy:
+  provider: surge
+  project: ./build/
+  on: master
+  skip_cleanup: true
