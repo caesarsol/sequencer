@@ -10,5 +10,6 @@ script: yarn build
 deploy:
   provider: surge
   project: ./build/
+  domain: sequencer.surge.sh
   on: master
   skip_cleanup: true
