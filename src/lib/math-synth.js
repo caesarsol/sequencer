@@ -1,6 +1,9 @@
-const context = new window.AudioContext()
+import FFT from 'lib/nayuki-fft'
 
+const context = new window.AudioContext()
 const TWO_PI = 2 * Math.PI
+const MAX_AUDIBLE_FREQ = 20000
+
 function sinPi(x) { return Math.sin(x * TWO_PI) }
 function clamp(x, [min, max]) { return Math.max(Math.min(x, max), min) }
 function sig(x) { return x > 0 ? 1 : x < 0 ? -1 : 0 }
@@ -10,7 +13,7 @@ function abs(x) { return Math.abs(x) }
 export const Osc = {
   sin(x) { return sinPi(x) },
   squ(x) { return sig(sinPi(x)) },       // amplitude 1
-  sqn(x) { return sig(sinPi(x)) * 0.2 }, // amplitude normalized
+  sqn(x) { return sig(sinPi(x)) * 0.2 }, // amplitude ear-normalized
   saw(x) { return ((x + 0.25) % 1) * 2 - 1 },
   tri(x) { return abs(Osc.saw(x)) * 2 - 1 },
   noi(x) { return Math.random() },
@@ -30,24 +33,12 @@ export function genBuffer(durationSeconds, genFn) {
 
   for (let i = 0; i <= data.length; i++) {
     const t = i / context.sampleRate
-    const RMP = 100
-    // const ramp = i < RMP ? i / RMP : (data.length - i) < RMP ? (data.length - i) / RMP : 1
     const datum = genFn(t)
     data[i] = clamp(datum, [-1, 1])
   }
 
   return buffer
 }
-
-/*
-const node = context.createScriptProcessor(1024, 1, 1);
-node.onaudioprocess = function (e) {
-  const output = e.outputBuffer.getChannelData(0);
-  for (const i = 0; i < output.length; i++) {
-    output[i] = Math.random();
-  }
-};
-*/
 
 function genNodeBuffer(buffer) {
   const node = context.createBufferSource()
@@ -56,54 +47,9 @@ function genNodeBuffer(buffer) {
   return node
 }
 
-const playingNodes = new Map()
-function playOrStop(buffer) {
-  if (!playingNodes.has(buffer)) {
-    const node = genNodeBuffer(buffer)
-    playingNodes.set(buffer, node)
-    node.start(0)
-    return node
-  } else {
-    const node = playingNodes.get(buffer)
-    playingNodes.delete(buffer)
-    node.stop(0)
-    return null
-  }
-}
-
 export function playBuffer(buffer) {
   const node = genNodeBuffer(buffer)
   node.start(0)
-}
-
-// function analyseFft(node) {
-//   const analyser = context.createAnalyser()
-//   analyser.fftSize = 2048
-//   analyser.minDecibels = -90
-//   analyser.maxDecibels = -10
-//   analyser.smoothingTimeConstant = 0.85
-//
-//   node.connect(analyser)
-//
-//   const data = new Uint8Array(analyser.frequencyBinCount)
-//   analyser.getByteFrequencyData(data)
-//   console.log(data.join())
-//   // const normData = data.map(n => n / 255)
-//   return data
-// }
-
-// let int
-function drawPlayer(buffer, canvas = undefined) {
-  drawBufData(buffer.getChannelData(0), canvas).addEventListener('click', () => {
-    playBuffer(buffer)
-    // const node = playOrStop(buffer)
-    // if (node) {
-    //   const canvas = document.createElement('canvas')
-    //   int = window.setInterval(() => drawBufData(analyseFft(node), canvas), 500)
-    // } else {
-    //   window.clearInterval(int)
-    // }
-  })
 }
 
 export function drawBufData(audioData, givenCanvas = null) {
@@ -119,14 +65,51 @@ export function drawBufData(audioData, givenCanvas = null) {
   ctx.fillStyle = 'steelblue'
   ctx.globalAlpha = 0.4
   ctx.fillRect(0, 0, w, h)
-  ctx.globalAlpha = 1
+  ctx.beginPath()
   for (let x = 0; x < w; x++) {
-    const y = (audioData[x] / 2 + 0.5) * h
-    ctx.fillRect(x, h - y - 1, 1, 2)
+    const y = (audioData[x] * 0.5 + 0.5) * h
+    ctx.lineTo(x, h - y)
     ctx.globalAlpha = 0.3
     ctx.fillRect(x, h - y, 1, y)
-    ctx.globalAlpha = 1.0
   }
+  ctx.globalAlpha = 1.0
+  ctx.strokeStyle = 'steelblue'
+  ctx.lineWidth = 2
+  ctx.stroke()
+
+  const n = 1024 * 8
+  const fft = new FFT(n)
+  const fourierDataReal = audioData.slice(0, n)
+  const fourierDataImag = fourierDataReal.map(_ => 0)
+  fft.forward(fourierDataReal, fourierDataImag)
+  // https://stackoverflow.com/questions/4364823/how-do-i-obtain-the-frequencies-of-each-value-in-an-fft#answer-4371627
+  const lm = fourierDataReal.length / 2 // For a Real input signal the second half of the FFT contain no useful additional information.
+  const fb = context.sampleRate / n // frequencies bin
+  const l = Math.min(MAX_AUDIBLE_FREQ / fb, lm)
+  const freqPerPixel = 0.397 // Arbitrary. TODO find the formula
+  const bw = fb * freqPerPixel // bin width
+  ctx.beginPath()
+  for (let k = 0; k < l; k++) {
+    const frequency = k * fb
+    const amplitude = Math.sqrt(fourierDataReal[k] ** 2 + fourierDataImag[k] ** 2)
+
+    const x = frequency * freqPerPixel
+    const y = amplitude / 20
+    ctx.lineTo(x, h - y)
+    ctx.globalAlpha = 0.6
+    ctx.fillStyle = 'tomato'
+    ctx.fillRect(x, h - y, bw, y)
+
+    // if (k > 0 && Math.ceil(frequency) % 440 < fb) {
+    //   ctx.globalAlpha = 1.0
+    //   ctx.fillStyle = 'yellow'
+    //   ctx.fillRect(x, 0, bw, h)
+    // }
+  }
+  ctx.globalAlpha = 1.0
+  ctx.strokeStyle = 'tomato'
+  ctx.lineWidth = 2
+  ctx.stroke()
 
   if (!givenCanvas) document.body.appendChild(canvas)
   return canvas
@@ -138,28 +121,3 @@ export const Sounds = {
   bird: t => Osc.sin(Envl.decay(660, 110, t)),
   laserOscA: t => Osc.sin(t * 440) * Osc.sin(1 / t),
 }
-
-function drawPlayerBuffer(duration, genBufferFn, canvas) {
-  const buffer = genBuffer(duration, genBufferFn)
-  return drawPlayer(buffer, canvas)
-}
-
-// drawPlayerBuffer(0.5, Sounds.a)
-// drawPlayerBuffer(0.5, Sounds.laser)
-// drawPlayerBuffer(0.5, Sounds.bird)
-// drawPlayerBuffer(0.05, t => Envl.decay(1, 0.0001, t))
-// drawPlayerBuffer(0.5, t => 0.01 / (0.01 + t), 0.5)
-// drawPlayerBuffer(0.5, Sounds.laserOscA)
-
-// const can = document.createElement('canvas')
-// const inp = document.createElement('input')
-// inp.value = 'Osc.sin(Envl.decay(660, 10, t))'
-// inp.style.width = '500px'
-// function update() {
-//   const fn = eval('t => ' + inp.value)
-//   drawPlayerBuffer(0.5, fn, can)
-// }
-// inp.addEventListener('keyup', update)
-// update()
-// document.body.appendChild(inp)
-// document.body.appendChild(can)
