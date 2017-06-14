@@ -1,8 +1,8 @@
-import FFT from 'lib/nayuki-fft'
+import frequencies from 'lib/frequencies'
 
 const context = new window.AudioContext()
 const TWO_PI = 2 * Math.PI
-const MAX_FOURIER_FREQ = 5000
+const MAX_FOURIER_FREQ = 3000
 
 function sinPi(x) { return Math.sin(x * TWO_PI) }
 function clamp(x, [min, max]) { return Math.max(Math.min(x, max), min) }
@@ -77,39 +77,23 @@ export function drawBufData(audioData, givenCanvas = null) {
   ctx.lineWidth = 2
   ctx.stroke()
 
-  const n = 1024 * 8
-  const fft = new FFT(n)
-  const fourierDataReal = audioData.slice(0, n)
-  const fourierDataImag = fourierDataReal.map(_ => 0)
-  fft.forward(fourierDataReal, fourierDataImag)
-  // https://stackoverflow.com/questions/4364823/how-do-i-obtain-the-frequencies-of-each-value-in-an-fft#answer-4371627
-  const lm = fourierDataReal.length / 2 // For a Real input signal the second half of the FFT contain no useful additional information.
-  const fb = context.sampleRate / n // frequencies bin
-  const l = Math.min(MAX_FOURIER_FREQ / fb, lm)
-  const bw = w / l // bin width
-  const pixelPerFreq = bw / fb
+  const { freqData, freqBin, maxAmp, freqAtMaxAmp } = frequencies(audioData, context.sampleRate)
+  console.log(freqAtMaxAmp)
+  const numBinsToDisplay = MAX_FOURIER_FREQ / freqBin
+  const binWidth = w / numBinsToDisplay
+  const pixelPerFreq = binWidth / freqBin
   // ctx.beginPath()
-  for (let k = 0; k < l; k++) {
-    const frequency = k * fb
-    const amplitude = Math.sqrt(fourierDataReal[k] ** 2 + fourierDataImag[k] ** 2)
+  for (let k = 0; k < numBinsToDisplay; k++) {
+    const freq = freqBin * k
+    const amp = freqData[k]
 
-    const x = frequency * pixelPerFreq
-    const y = amplitude / 20
-    // ctx.lineTo(x, h - y)
+    const x = pixelPerFreq * freq
+    const y = amp / maxAmp * h
+
     ctx.globalAlpha = 0.6
     ctx.fillStyle = 'tomato'
-    ctx.fillRect(x, h - y, bw, y)
-
-    // if (k > 0 && Math.ceil(frequency) % 440 < fb) {
-    //   ctx.globalAlpha = 1.0
-    //   ctx.fillStyle = 'yellow'
-    //   ctx.fillRect(x, 0, bw, h)
-    // }
+    ctx.fillRect(x, h - y, binWidth, y)
   }
-  // ctx.globalAlpha = 1.0
-  // ctx.strokeStyle = 'tomato'
-  // ctx.lineWidth = 2
-  // ctx.stroke()
 
   if (!givenCanvas) document.body.appendChild(canvas)
   return canvas
