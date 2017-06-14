@@ -10,7 +10,6 @@ import { getNoteFreq } from 'lib/notes'
 
 const mathSounds = [
   [ 'sin', 0.2, t => Osc.sin(t * 440) ],
-  [ 'sin', 0.2, t => Osc.sin(t * 3000) ],
   [ 'tri', 0.2, t => Osc.tri(t * 440) ],
   [ 'squ', 0.2, t => Osc.sqn(t * 440) ],
   [ 'saw', 0.2, t => Osc.saw(t * 440) ],
@@ -49,15 +48,17 @@ export default class App extends React.Component {
       <div className="flex flex-row">
         <Sequencer steps={8} instruments={mathSounds.length} play={play} />
 
-        <div className="mt5 flex flex-column">
+        <div
+          className="mt5 flex flex-column"
+          onClick={({ currentTarget: t }) => {
+            Array.from(t.querySelectorAll('canvas')).forEach(c => { c.style.width = c.style.width ? '' : '100%' })
+          }}
+        >
           {bufferSounds.map((b, i) =>
             <div key={i} className="relative ma1 h2">
               <canvas
                 height="32"
                 ref={el => drawBufData(b.getChannelData(0), el)}
-                onClick={ev => {
-                  ev.target.style.width = ev.target.style.width ? '' : '100%'
-                }}
               />
               <span className="absolute left-0 ma1 f4 black-70 code">
                 {mathSounds[i][0]}
