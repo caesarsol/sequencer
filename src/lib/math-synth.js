@@ -24,6 +24,7 @@ export const Envl = {
   lin: (t, a, b, k) => zero(t >= k) * (a + (b - a) * t % k / k),
   sin: (t, k) => sinPi(t / k / 2),
   sindecay: (t, ks, kd = ks, s = 1) => Envl.sin(t, ks) * Envl.decay(t, 1, 0.1, kd, s) * 4.4,
+  lindecay: (t, ks) => Math.min(0.9, 4 * Envl.lin(t, 1, 0, ks), 30 * Envl.lin(t, 0, 1, ks)),
 }
 
 export function genBuffer(durationSeconds, genFn) {

@@ -31,11 +31,11 @@ const mathSounds = [
   // [ 'laser', 0.2, t => Osc.sin(50 / Osc.sin(t / 0.8)) * 0.9 ], FFT NOT WORKING??
   [ 'laser', 0.2, t => Osc.sin(Envl.decay(t, 660, 10, 1)) ],
   [ 'cip', 0.2, t => 0.5 * Osc.sin(Envl.decay(t, 660, 110, 1)) ],
-
   [ 'pulse', 0.2, t => Osc.sin(50 * Osc.sin(t / 0.8)) * 0.9 ],
-  [ 'kick hi', 0.2, t => Osc.sin(Envl.decay(t, 220, 110, 1)) ],
-  [ 'kick mid', 0.2, t => Osc.sin(Envl.decay(t, 60, 10, 1)) ],
-  [ 'kick bass', 0.2, t => Osc.sin(Envl.decay(t, 70, 20, 1)) ],
+
+  [ 'kick hi', 0.2, t => Osc.sin(Envl.decay(t, 220, 110, 1)) * Envl.lindecay(t, 0.2) ],
+  [ 'kick mid', 0.2, t => Osc.sin(Envl.decay(t, 60, 10, 1)) * Envl.lindecay(t, 0.2) ],
+  [ 'kick bass', 0.2, t => Osc.sin(Envl.decay(t, 70, 20, 1)) * Envl.lindecay(t, 0.2) ],
 ]
 
 const bufferSounds = mathSounds.map(([name, duration, equation]) => genBuffer(duration, equation))
