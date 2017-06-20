@@ -78,8 +78,7 @@ export function drawBufData(audioData, givenCanvas = null) {
   ctx.lineWidth = 2
   ctx.stroke()
 
-  const { freqData, freqBin, maxAmp, freqAtMaxAmp } = frequencies(audioData, context.sampleRate)
-  console.log(freqAtMaxAmp)
+  const { freqData, freqBin, maxAmp } = frequencies(audioData, context.sampleRate)
   const numBinsToDisplay = MAX_FOURIER_FREQ / freqBin
   const binWidth = w / numBinsToDisplay
   const pixelPerFreq = binWidth / freqBin
