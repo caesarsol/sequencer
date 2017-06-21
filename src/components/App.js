@@ -1,5 +1,7 @@
 /* eslint-disable react/jsx-no-bind */
 import React from 'react'
+import { observable, createTransformer } from 'mobx'
+import { observer } from 'mobx-react'
 import Sequencer from 'components/Sequencer'
 import { genBuffer, playBuffer, drawBufData, Osc, Envl } from 'lib/math-synth'
 import { getNoteFreq } from 'lib/notes'
@@ -8,42 +10,49 @@ import { getNoteFreq } from 'lib/notes'
 // const synth = new Synth()
 // const play = chord => synth.playChord(chord)
 
-const mathSounds = [
-  [ 'sin', 0.2, t => Osc.sin(t * 440) ],
-  [ 'tri', 0.2, t => Osc.tri(t * 440) ],
-  [ 'squ', 0.2, t => Osc.sqn(t * 440) ],
-  [ 'saw', 0.2, t => Osc.saw(t * 440) ],
+const { sin, tri, sqn, saw, noi } = Osc
+const { lin, decay, lindecay, sindecay } = Envl
+const frq = getNoteFreq
 
-  [ 'snare', 0.2, t => Osc.noi() * Envl.lin(t, 1, 0, 0.2) ],
-  [ 'snare long', 0.4, t => Osc.noi() * Envl.lin(t, 1, 0, 0.4) * Envl.decay(t, 2, 0.01, 4) ],
+const mathSounds = observable([
+  [ 'sin', 0.2, t => sin(t * 440) ],
+  [ 'tri', 0.2, t => tri(t * 440) ],
+  [ 'squ', 0.2, t => sqn(t * 440) ],
+  [ 'saw', 0.2, t => saw(t * 440) ],
+
+  [ 'snare', 0.2, t => noi() * lin(t, 1, 0, 0.2) ],
+  [ 'snare long', 0.4, t => noi() * lin(t, 1, 0, 0.4) * decay(t, 2, 0.01, 4) ],
   // [ '', 0.2, t => [1, 2, 3, 4, 5].reduce((acc, n) =>
-  //   acc * Osc.squ(t * 440 * n)
-  // , 1) * Envl.sindecay(t, 0.15) ],
+  //   acc * squ(t * 440 * n)
+  // , 1) * sindecay(t, 0.15) ],
   [ 'bell', 0.2, t => [[2.0, 1], [3.0, 2], [4.16, 3], [5.43, 4], [6.79, 5], [8.21, 6]].reduce((acc, [f, d]) =>
-    acc + Osc.sin(t * 440 * f) * Envl.lin(t, 1 / d, 0, 0.2) / 6
+    acc + sin(t * 440 * f) * lin(t, 1 / d, 0, 0.2) / 6
   , 0) ],
   [ 'horgan', 0.4, t =>
-    Osc.sin(t * getNoteFreq('C3')) *
-    Osc.sin(t * getNoteFreq('E3')) *
-    Osc.sin(t * getNoteFreq('G3')) *
-    Envl.sindecay(t, 0.4),
+    sin(t * frq('C3')) *
+    sin(t * frq('E3')) *
+    sin(t * frq('G3')) *
+    sindecay(t, 0.4),
   ],
-  // [ 'laser', 0.2, t => Osc.sin(50 / Osc.sin(t / 0.8)) * 0.9 ], FFT NOT WORKING??
-  [ 'laser', 0.2, t => Osc.sin(Envl.decay(t, 660, 10, 1)) ],
-  [ 'cip', 0.2, t => 0.5 * Osc.sin(Envl.decay(t, 660, 110, 1)) ],
-  [ 'pulse', 0.2, t => Osc.sin(50 * Osc.sin(t / 0.8)) * 0.9 ],
+  // [ 'laser', 0.2, t => sin(50 / sin(t / 0.8)) * 0.9 ], FFT NOT WORKING??
+  [ 'laser', 0.2, t => sin(decay(t, 660, 10, 1)) ],
+  [ 'cip', 0.2, t => 0.5 * sin(decay(t, 660, 110, 1)) ],
+  [ 'pulse', 0.2, t => sin(50 * sin(t / 0.8)) * 0.9 ],
 
-  [ 'kick hi', 0.2, t => Osc.sin(Envl.decay(t, 220, 110, 1)) * Envl.lindecay(t, 0.2) ],
-  [ 'kick mid', 0.2, t => Osc.sin(Envl.decay(t, 60, 10, 1)) * Envl.lindecay(t, 0.2) ],
-  [ 'kick bass', 0.2, t => Osc.sin(Envl.decay(t, 70, 20, 1)) * Envl.lindecay(t, 0.2) ],
-]
+  [ 'kick hi', 0.2, t => sin(decay(t, 220, 110, 1)) * lindecay(t, 0.2) ],
+  [ 'kick mid', 0.2, t => sin(decay(t, 60, 10, 1)) * lindecay(t, 0.2) ],
+  [ 'kick bass', 0.2, t => sin(decay(t, 70, 20, 1)) * lindecay(t, 0.2) ],
+])
 
-const bufferSounds = mathSounds.map(([name, duration, equation]) => genBuffer(duration, equation))
+const genBufferLazy = createTransformer(([name, duration, equation]) => genBuffer(duration, equation))
+const drawBufferLazy = createTransformer((sound) => drawBufData(genBufferLazy(sound).getChannelData(0)))
 
-const play = chord => chord.forEach(i => playBuffer(bufferSounds[i]))
-
+@observer
 export default class App extends React.Component {
   render() {
+    const bufferSounds = mathSounds.map(genBufferLazy)
+    const play = chord => chord.forEach(s => playBuffer(bufferSounds[s]))
+
     return (
       <div className="flex flex-row">
         <Sequencer steps={8} instruments={mathSounds.length} play={play} />
@@ -51,18 +60,31 @@ export default class App extends React.Component {
         <div
           className="mt5 flex flex-column"
           onClick={({ currentTarget: t }) => {
-            Array.from(t.querySelectorAll('canvas')).forEach(c => { c.style.width = c.style.width ? '' : '100%' })
+            Array.from(t.querySelectorAll('canvas'))
+              .forEach(c => { c.style.width = c.style.width ? '' : '100%' })
           }}
         >
-          {bufferSounds.map((b, i) =>
+          {mathSounds.map((sound, i) =>
             <div key={i} className="relative ma1 h2">
               <canvas
                 height="32"
-                ref={el => drawBufData(b.getChannelData(0), el)}
+                ref={el => {
+                  console.log(el)
+                  if (el) drawBufferLazy(sound)
+                }}
               />
-              <span className="absolute left-0 ma1 f4 black-70 code">
+              {/* <span className="absolute left-0 ma1 f4 black-70 code">
                 {mathSounds[i][0]}
-              </span>
+              </span> */}
+              <input
+                className="h-100 w-100 absolute left-0 bn f4 bg-transparent hover-bg-white-30 outline-0 black-70 code"
+                value={mathSounds[i][2].toString().replace(/^t => /, '')}
+                onChange={({ target: { value } }) => {
+                  // eslint-disable-next-line no-eval
+                  mathSounds[i][2] = eval(`t => ${value}`)
+                }}
+                onClick={(event) => { event.stopPropagation() }}
+              />
             </div>
           )}
         </div>
